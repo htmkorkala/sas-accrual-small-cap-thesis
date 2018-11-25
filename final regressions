@@ -1,0 +1,1123 @@
+libname mydata 'K:\Downloads\Gradu\Tilastoaineisto';  
+data marketr;  
+set mydata.crsp_market_ret;  
+run;
+*starting to calculate firm returns for first 0-6 & 7-12 months;
+data marketr;
+set marketr;
+run;
+*deleting dates before 27APR1988 & 27MAR2013;
+data marketr;
+set marketr;
+where MCALDT > '27APR1989'd and MCALDT < '27APR2013'd;
+run;
+*deleting RET_VW 27APR1988 & 27MAR2013;
+data marketr;
+set marketr;
+drop RET_VW;
+run;
+proc sort data=marketr;
+by MCALDT;
+
+%macro calcret;
+data marketr2;
+set marketr;
+
+/* Take natural logs of the firm return (ret) and decile size return (decret) */
+
+   lfRET_eq=log(RET_eq+1);
+
+/* Define arrays to create the lagged values */
+
+    array lagfRET_eq[11] lagfRET_eq1-lagfRET_eq11;
+
+/* This is the macro portion: a "do-loop" to create the 59 necessary lags */
+
+    %do j=1 %to 11;
+       lagfRET_eq&j=lag&j(lfRET_eq);
+    %end;
+
+/* The following statements set to missing lagged values that */
+/* are reading the data corresponding to the previous PERMNO  */
+
+   do i=count to 11;
+    end;
+    count +1 ;
+
+/* Calculate the cumulative returns by adding the logs of the returns*/
+
+    fcumRET_eq= exp( sum(of lfRET_eq lagfRET_eq1-lagfRET_eq11)) -1;
+
+/* Drop unnecessary variables */
+
+    drop l: count i;
+
+%mend calcret;  /* End of macro  */
+%calcret;       /* Run the macro */
+
+/* Restore chronological order */
+proc sort data=marketr2;
+  by MCALDT;
+*Keeping only September & March;
+data marketr2;
+set marketr2;
+monthid = MONTH(MCALDT);
+run;
+*Keeping only September & March;
+data marketr2;
+set marketr2;
+monthid2 = monthid + 0;
+run;
+*Keeping only September & March;
+data marketr2;
+set marketr2;
+IF monthid2  ^= 3 then delete;
+run;
+
+
+KOODI JOLLA YHDISTETÄÄN koko desiilin JA OSAKKEIDEN TUOTOT
+
+
+libname h 'K:\Downloads\Gradu\Tilastoaineisto'; run; /* Type here path where the files are stored*/
+
+data ret; set h.Crsp_firm_ret; run;
+data size; set h.Crsp_size_ret; format mcaldt date9.; run;
+
+
+/*1. Create cartesian product of firm identifiers (permnos) and month-end dates*/
+
+data permnos; set ret; keep permno ; run;
+proc sort data=permnos nodupkey; by _all_; run; /*23,993*/
+
+data dates; set size;keep mcaldt; run; /*336*/
+proc sort data=dates nodupkey;  by _all_; run;
+
+proc sql; create table all_dates as select * from permnos , dates; quit;
+/*This set contains all possible combinations of firm identifiers and month-end dates:
+23,993 x 336 =  8,061,648*/
+
+
+/*2. Identify firms with non-missins returns in April (month on which you will start return compunding)
+and keep only these April observations*/
+
+data april; set ret; if month(date)=4 and ret^=.; april=date; format april date9.; keep permno april Port__1; run;
+
+/*2b. Merge these April observations with "all dates" to get 12-month time series after each
+non-missing April observation.*/
+
+proc sql; create table april1 as select * from april left join all_dates on
+april.permno=all_dates.permno and 0<=intck('MONTH', april,mcaldt )<12; quit;
+proc sort data=april1; by permno april mcaldt; run;
+
+
+/*3. Merge this set first with size decile returns*/
+
+proc sql; create table all_size_returns as select april1.*, size_ret from april1 left join size on
+april1.mcaldt=size.mcaldt and capn=Port__1 where size_ret^=.;; quit;
+proc sort data=all_size_returns; by permno april mcaldt; run;
+
+
+/*4.Finally, merge the retulting set with firm returns and substitute missing firm returns with size decile
+returns*/
+
+
+proc sql; create table final_returns as select all_size_returns.*, ret from all_size_returns left join ret on
+all_size_returns.permno=ret.permno and date=mcaldt; quit;
+
+data final_returns; set final_returns; if ret=. then ret=SIZE_RET;  run;
+
+/*delete intermediate datasets*/
+proc datasets; delete april: permnos dates all:; run;
+
+*starting to calculate cumulative returns;
+Proc sort data = final_returns;
+by permno mcaldt;
+run;
+*deleting dates before 27APR1989 & 27MAR2013;
+data final_returns;
+set final_returns;
+where mcaldt > '27APR1989'd and MCALDT < '27APR2013'd;
+run;
+proc sort data=final_returns;
+by permno MCALDT;
+
+%macro calcret;
+data final_returns;
+set final_returns;
+
+/* Take natural logs of the firm return (ret) and decile size return (decret) */
+
+   lfRet=log(Ret+1);
+
+/* Define arrays to create the lagged values */
+
+    array lagfRet[11] lagfRet1-lagfRet11;
+
+/* This is the macro portion: a "do-loop" to create the 59 necessary lags */
+
+    %do j=1 %to 11;
+       lagfRet&j=lag&j(lfRet);
+    %end;
+
+/* The following statements set to missing lagged values that */
+/* are reading the data corresponding to the previous PERMNO  */
+
+   do i=count to 11;
+    end;
+    count +1 ;
+
+/* Calculate the cumulative returns by adding the logs of the returns*/
+
+    fcumRet= exp( sum(of lfRet lagfRet1-lagfRet11)) -1;
+
+/* Drop unnecessary variables */
+
+    drop l: count i;
+
+%mend calcret;  /* End of macro  */
+%calcret;       /* Run the macro */
+/* Restore chronological order */
+proc sort data=final_returns;
+  by permno MCALDT;
+  run;
+*Keeping only September & March;
+data final_returns;
+set final_returns;
+monthid = MONTH(MCALDT);
+run;
+*Keeping only September & March;
+data final_returns;
+set final_returns;
+monthid2 = monthid + 0;
+run;
+*Keeping only September & March;
+data final_returns;
+set final_returns;
+IF monthid2 ^= 3 then delete;
+run;
+data final_returns;
+set final_returns;
+drop monthid monthid2 april;
+run;
+data final_returns;
+set final_returns;
+FYYYY = year(mcaldt);
+run;
+
+
+Koodi jolla yhdistetään financials ja final_returns
+
+libname mydata 'K:\NewDATASETS';  
+*reading final returns;
+data final_returns;
+set mydata.final_returns;
+run;
+*sorting final returns;
+proc sort data = final_returns;
+by permno mcaldt FYYYY;
+run;
+*data manipulation: making march year same year as previous year;
+data final_returns;
+set final_returns;
+monthid = month(mcaldt);
+run;
+*data manipulation: making march year same year as previous year;
+data final_returns;
+set final_returns;
+if monthid = 3 then FYYYY = FYYYY-1;
+run;
+*dropping monthid;
+data final_returns;
+set final_returns;
+drop monthid;
+run;
+*missing variables detection in final returns;
+proc means data = final_returns n nmiss;
+  var _numeric_;
+run;
+*sorting final returns;
+proc sort data = final_returns;
+by permno mcaldt FYYYY;
+run;
+*reading financials;
+data financials;
+set mydata.financials;
+run;
+*missing variables detection in financials;
+proc means data = financials n nmiss;
+  var _numeric_;
+run;
+*sorting financials;
+proc sort data = financials;
+by permno FYYYY;
+run;
+data financials_firm_returns;
+merge final_returns financials;
+by permno FYYYY;
+run;
+data financials_firm_returns;
+set financials_firm_returns;
+drop CFOcf SIC FYRA kygvkey;
+run;
+*missing variables detection in financials & firm returns;
+proc means data = financials_firm_returns n nmiss;
+  var _numeric_;
+run;
+data financials_firm_returns;
+set financials_firm_returns;
+if MCAP =. or fcumret =. then delete;
+run;
+*missing variables detection in financials & firm returns;
+proc means data = financials_firm_returns n nmiss;
+  var _numeric_;
+run;
+data financials_firm_returns;
+set financials_firm_returns;
+drop Port__1 SIZE_RET Ret;
+run;
+
+Koodi jolla lisätty riskitön korko Rf
+
+libname mydata 'K:\NewDATASETS';  
+*reading market_returns;
+data market_returns;
+set mydata.market_returns;
+run;
+data market_returns;
+set market_returns;
+drop monthid monthid2;
+run;
+data market_returns;
+set market_returns;
+input Rf;
+datalines;
+0.0896
+0.0805
+0.0595
+0.0411
+0.0296
+0.0382
+0.0594
+0.052
+0.053
+0.0512
+0.0444
+0.0587
+0.0422
+0.018
+0.0113
+0.0095
+0.028
+0.0467
+0.0504
+0.014
+0.0022
+0.0016
+0.0007
+0.0008
+;
+
+
+
+
+
+Koodi jolla yhdistetään indeksituotot ja osakkeiden tuotot
+
+libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat';  
+*reading firm_returns_financials;
+data firm_returns_financials;
+set mydata.firm_returns_financials;
+run;
+*reading market_returns;
+data market_returns;
+set mydata.market_returns;
+run;
+proc sort data = firm_returns_financials;
+by mcaldt;
+run;
+proc sort data = market_returns;
+by mcaldt;
+run;
+data firm_returns_financials;
+set firm_returns_financials;
+drop qtacc qmcap;
+run;
+data market_returns;
+set mydata.market_returns;
+drop monthid monthid2 RET_eq;
+run;
+data crosssectional;
+merge firm_returns_financials market_returns;
+by mcaldt;
+run;
+proc sort data = crosssectional;
+by permno mcaldt;
+run;
+proc means data = crosssectional n nmiss;
+  var _numeric_;
+  run;
+
+
+Poikkileikkausregressio
+
+libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Poikkileikkausregressio';  
+*reading firm_returns_financials;
+data crosssectional;
+set mydata.crosssectional;
+run;
+*market risk premium;
+data crosssectional;
+set crosssectional;
+mrp = fcumRET_eq - Rf;
+run;
+*security risk premium;
+data crosssectional;
+set crosssectional;
+srp = fcumRet -Rf;
+run;
+*abnormal returns;
+data crosssectional;
+set crosssectional;
+abr = srp - mrp;
+run;
+*log of MCAP;
+data crosssectional;
+set crosssectional;
+lMCAP = log(MCAP);
+run;
+data crossreg;
+set crosssectional;
+run;
+*accrual regression;
+proc reg data=crossreg; title 'cross sectional regression: Accruals only';  
+model abr=TACCcf / white;  
+run;  
+*MCAP regression;
+proc reg data=crossreg; title 'cross sectional regression: lMCAP only';  
+model abr=lMCAP / white;  
+run;  
+* accrual & MCAP regression;
+proc reg data=crossreg; title 'cross sectional regression: Accruals & lMCAP';  
+model abr= TACCcf lMCAP / white;  
+run;  
+
+
+Erotetaan osakkeet poikkileikkausregression tietokannasta
+
+libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Portfoliot';  
+*reading crosssectional;
+data crosssectional;
+set mydata.crosssectional;
+run;
+*dropping unnecessary variables for index;
+data crosssectional;
+set crosssectional;
+drop rf fcumRET_eq;
+run;
+
+
+
+
+Portfolioiden muodostamisen ja alfojen koodi
+
+Kuva (alustava jakaminen kuvan portfolioihin)
+
+libname mydata 'K:\NewDATASETS';  
+*reading firms;
+data firms;
+set mydata.firms;
+run;
+*Sorting data by MCAP & MCALDT;
+proc sort data=firms;  
+by fyrdate MCAP;  
+run;  
+*5 quintiles for MCAP;
+proc rank data=firms out=firms groups=5;
+var MCAP;
+ranks qmcap1;
+by fyrdate;
+run;
+*Checking proper order;
+proc sort data=firms;  
+by permno fyrdate;  
+run;
+data firms;
+set firms;
+qmcap = qmcap1 + 0;
+run;
+*Sorting data by TACCcf & MCALDT;
+proc sort data=firms;  
+by fyrdate TACCcf;  
+run;  
+*10 deciles for TACCcf;
+proc rank data=firms out=firms groups=10;
+var TACCcf;
+ranks dTACCcf1;
+by fyrdate;
+run;
+*Checking proper order;
+proc sort data=firms;  
+by permno fyrdate;  
+run;
+data firms;
+set firms;
+dTACCcf = dTACCcf1 + 0;
+run;
+data firms;
+set firms;
+drop dTACCcf1 qmcap1;
+run;
+
+Kuva (tarkempi jakaminen kuvan portfolioihin)
+
+libname mydata 'K:\NewDATASETS\Kuvan portfoliot';  
+*reading firms;
+data firms_10acc_5mcap;
+set mydata.picture;
+run;
+proc sort data = firms_10acc_5mcap;
+by dtacccf qmcap;
+run;
+data firms_10acc_5mcap;
+set firms_10acc_5mcap;
+if dTACCcf ^= 9 then delete;
+if qmcap ^= 4 then delete;
+run;
+_ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
+
+Kuva (alfojen keruu)
+
+libname mydata ' K:\NewDATASETS\Kuvan portfoliot';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.zero_tacc_zero_mcap;
+run;
+proc sort data = portfolio;
+by mcaldt;
+run;
+*mean returns for a year;
+proc means data = portfolio mean NOPRINT;
+var fcumRet;
+by MCALDT;
+output out = aaa mean=;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge aaa market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+Prp = fcumRet - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+*plot;
+proc gplot data=mergedout;
+     plot r * Mrp / haxis=axis1 hminor=4 cframe=ligr
+                      vaxis=axis2 vminor=4 
+                      vref=0.0;
+     symbol1 c=green v=star;
+     axis1 order=(-0.3 to 0.2 by 0.1);
+     axis2 label=(angle=90 'Tandy Corp. Risk Premium')
+           order=(-0.3 to 0.4 by 0.1);
+     title 'Portfolio CAPM Example';
+     title2'OLS Residuals versus Market Risk Premium';
+   run;
+
+
+
+
+Testi (alustava jakaminen testin portfolioihin)
+
+libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Portfoliot';  
+*reading firms;
+data firms;
+set mydata.firms;
+run;
+*Sorting data by MCAP & MCALDT;
+proc sort data=firms;  
+by MCALDT MCAP;  
+run;  
+*5 quintiles for MCAP;
+proc rank data=firms out=firms groups=5;
+var MCAP;
+ranks qmcap1;
+by MCALDT;
+run;
+*Checking proper order;
+proc sort data=firms;  
+by permno MCALDT;  
+run;
+data firms;
+set firms;
+qmcap = qmcap1 + 0;
+run;
+*Sorting data by TACCcf & MCALDT;
+proc sort data=firms;  
+by MCALDT TACCcf;  
+run;  
+*5 quintiles for TACCcf;
+proc rank data=firms out=firms groups=5;
+var TACCcf;
+ranks qTACCcf1;
+by MCALDT;
+run;
+*Checking proper order;
+proc sort data=firms;  
+by permno MCALDT;  
+run;
+data firms;
+set firms;
+qTACCcf = qTACCcf1 + 0;
+run;
+data firms;
+set firms;
+drop qTACCcf1 qmcap1;
+run;
+
+Testi (tarkempi jakaminen testin portfolioihin)
+
+libname mydata 'K:\NewDATASETS\testi';  
+*reading firms;
+data firms_5acc_5mcap;
+set mydata.firms_5acc_5mcap;
+run;
+proc sort data = firms_5acc_5mcap;
+by permno;
+run;
+data sorted;
+set mydata.firms_5acc_5mcap;
+gmcap = qmcap + 0;
+run;
+data sorted;
+set sorted;
+drop qmcap;
+run;
+data sorted;
+set sorted;
+gTACCcf = qTACCcf + 0;
+run;
+data sorted;
+set sorted;
+drop qTACCcf;
+run;
+data sorted;
+set sorted;
+if gmcap = 1 then gmcap = 2;
+if gmcap = 2 then gmcap = 2;
+if gmcap = 3 then gmcap = 2;
+run;
+data sorted;
+set sorted;
+if gmcap = 0 then gmcap = 1;
+if gmcap = 4 then gmcap = 3;
+run;
+data sorted;
+set sorted;
+if gTACCcf = 1 then gTACCcf = 2;
+if gTACCcf = 2 then gTACCcf = 2;
+if gTACCcf = 3 then gTACCcf = 2;
+run;
+data sorted;
+set sorted;
+if gTACCcf = 0 then gTACCcf = 1;
+if gTACCcf = 4 then gTACCcf = 3;
+run;
+proc sort data = sorted;
+by gTACCcf;
+run;
+proc sort data = sorted;
+by gmcap;
+run;
+data portfolios;
+set sorted;
+run;
+data portfolios;
+set portfolios;
+if gmcap = 2 then delete;
+if gTACCcf = 1 and gmcap = 1 then delete;
+if gTACCcf = 3 and gmcap = 3 then delete;
+run;
+_ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
+
+Testi (alfojen keruu)
+
+Basic hedge accruals;
+
+libname mydata 'K:\NewDATASETS\testi\basic hedge';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.acc_one_acc_three;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gtacccf;
+run;
+data high low;
+set portfolio2;
+if gtacccf = 1 then output  low;
+if gtacccf = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+
+Basic hedge MCAP;
+
+libname mydata 'K:\NewDATASETS\testi\basic hedge';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.qmcap_one_qmcap_three;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gmcap;
+run;
+data high low;
+set portfolio2;
+if gmcap = 1 then output  low;
+if gmcap = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+Boxes:
+libname mydata 'K:\NewDATASETS\testi\boxes';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.box_nine;
+run;
+proc sort data = portfolio;
+by mcaldt;
+run;
+*mean returns for a year;
+proc means data = portfolio mean NOPRINT;
+var fcumRet;
+by MCALDT;
+output out = aaa mean=;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge aaa market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+Prp = fcumRet - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+*plot;
+proc gplot data=mergedout;
+     plot r * Mrp / haxis=axis1 hminor=4 cframe=ligr
+                      vaxis=axis2 vminor=4 
+                      vref=0.0;
+     symbol1 c=green v=star;
+     axis1 order=(-0.3 to 0.2 by 0.1);
+     axis2 label=(angle=90 'Tandy Corp. Risk Premium')
+           order=(-0.3 to 0.4 by 0.1);
+     title 'Portfolio CAPM Example';
+     title2'OLS Residuals versus Market Risk Premium';
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+control hedges
+
+ACC
+
+libname mydata 'K:\NewDATASETS\testi\control hedges';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.box_fifteen;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gtacccf;
+run;
+data high low;
+set portfolio2;
+if gtacccf = 1 then output  low;
+if gtacccf = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+
+MCAP
+
+libname mydata 'K:\NewDATASETS\testi\control hedges';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.box_twelve;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gmcap;
+run;
+data high low;
+set portfolio2;
+if gmcap = 1 then output  low;
+if gmcap = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+
+
+NONoverlap
+
+ACC
+
+libname mydata 'K:\NewDATASETS\testi\nonoverlap hedges';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.acc;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gtacccf;
+run;
+data high low;
+set portfolio2;
+if gtacccf = 1 then output  low;
+if gtacccf = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
+
+MCAP
+
+libname mydata 'K:\NewDATASETS\testi\control hedges';  
+*reading firm returns for a portfolio;
+data portfolio;
+set mydata.box_twelve;
+run;
+data portfolio2;
+set portfolio;
+run;
+proc sort data = portfolio2;
+by mcaldt gmcap;
+run;
+data high low;
+set portfolio2;
+if gmcap = 1 then output  low;
+if gmcap = 3 then output  high;
+run;
+data low;
+set low;
+lowret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = low mean NOPRINT;
+var lowret;
+by MCALDT;
+output out = low2 mean=;
+run;
+data high;
+set high;
+highret = fcumRet;
+run;
+*mean returns for a year for low portfolio;
+proc means data = high mean NOPRINT;
+var highret;
+by MCALDT;
+output out = high2 mean=;
+run;
+data mergedhedge; 
+merge high2 low2;
+by mcaldt;
+run;
+*reading market returns;
+data market_returns;
+set mydata.market_returns;
+run;
+*merging data sets;
+data merged;
+merge mergedhedge market_returns;
+by mcaldt;
+run;
+*calculating portfolio & market risk premiums;
+data merged;
+set merged;
+Mrp = fcumRET_eq - rf;
+short = highret - fcumRET_eq;
+hedgeret = lowret - short;
+Prp = hedgeret - rf;
+run;
+*regression;
+proc autoreg data = merged; title 'alpha for accrual basic hedge portfolio';
+model Prp = Mrp / archtest dw=4 dwprob;
+test Mrp = 1;
+output out=mergedout p=p r=r ucl=u lcl=l alphacli=.10;
+title2;
+title3;
+run;
