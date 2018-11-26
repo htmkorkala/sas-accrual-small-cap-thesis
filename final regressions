@@ -1,4 +1,5 @@
-libname mydata 'K:\Downloads\Gradu\Tilastoaineisto';  
+*;
+libname mydata 'K:\Downloads\Thesis\Data';  
 data marketr;  
 set mydata.crsp_market_ret;  
 run;
@@ -22,6 +23,8 @@ by MCALDT;
 %macro calcret;
 data marketr2;
 set marketr;
+
+*Calculating stock returns;
 
 /* Take natural logs of the firm return (ret) and decile size return (decret) */
 
@@ -75,10 +78,10 @@ IF monthid2  ^= 3 then delete;
 run;
 
 
-KOODI JOLLA YHDISTETÄÄN koko desiilin JA OSAKKEIDEN TUOTOT
+*Code to unify accrual and market capitalization deciles and stock returns; 
 
 
-libname h 'K:\Downloads\Gradu\Tilastoaineisto'; run; /* Type here path where the files are stored*/
+libname h 'K:\Downloads\Thesis\Data'; run; /* Type here path where the files are stored*/
 
 data ret; set h.Crsp_firm_ret; run;
 data size; set h.Crsp_size_ret; format mcaldt date9.; run;
@@ -204,8 +207,7 @@ set final_returns;
 FYYYY = year(mcaldt);
 run;
 
-
-Koodi jolla yhdistetään financials ja final_returns
+*Code to unify financials, accruals and market capitalization to dataset;
 
 libname mydata 'K:\NewDATASETS';  
 *reading final returns;
@@ -276,7 +278,7 @@ set financials_firm_returns;
 drop Port__1 SIZE_RET Ret;
 run;
 
-Koodi jolla lisätty riskitön korko Rf
+*Code to add risk free returns to dataset;
 
 libname mydata 'K:\NewDATASETS';  
 *reading market_returns;
@@ -319,11 +321,9 @@ datalines;
 
 
 
+*Code to unify index returns and stock returns;
 
-
-Koodi jolla yhdistetään indeksituotot ja osakkeiden tuotot
-
-libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat';  
+libname mydata 'K:\Downloads\Gradu\Thesis\Data';  
 *reading firm_returns_financials;
 data firm_returns_financials;
 set mydata.firm_returns_financials;
@@ -358,9 +358,9 @@ proc means data = crosssectional n nmiss;
   run;
 
 
-Poikkileikkausregressio
+*Cross sectional regression of stocks;
 
-libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Poikkileikkausregressio';  
+libname mydata 'K:\Thesis\Data\Cross_sectional_regression';  
 *reading firm_returns_financials;
 data crosssectional;
 set mydata.crosssectional;
@@ -401,10 +401,9 @@ proc reg data=crossreg; title 'cross sectional regression: Accruals & lMCAP';
 model abr= TACCcf lMCAP / white;  
 run;  
 
+*Division of stocks from cross sectional regression dataset;
 
-Erotetaan osakkeet poikkileikkausregression tietokannasta
-
-libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Portfoliot';  
+libname mydata 'K:\Downloads\Thesis\Data\Portfolios';  
 *reading crosssectional;
 data crosssectional;
 set mydata.crosssectional;
@@ -416,11 +415,9 @@ drop rf fcumRET_eq;
 run;
 
 
+*Forming portfolios and the code for collecting alpha returns;
 
-
-Portfolioiden muodostamisen ja alfojen koodi
-
-Kuva (alustava jakaminen kuvan portfolioihin)
+*Preliminary division (Picture) of stocks to different portfolios by market capitalization and accruals;
 
 libname mydata 'K:\NewDATASETS';  
 *reading firms;
@@ -468,9 +465,10 @@ set firms;
 drop dTACCcf1 qmcap1;
 run;
 
-Kuva (tarkempi jakaminen kuvan portfolioihin)
 
-libname mydata 'K:\NewDATASETS\Kuvan portfoliot';  
+*Division (picture) of stocks to different portfolios by market capitalization and accruals;
+
+libname mydata 'K:\NewDATASETS\picture_portfolios';  
 *reading firms;
 data firms_10acc_5mcap;
 set mydata.picture;
@@ -485,9 +483,9 @@ if qmcap ^= 4 then delete;
 run;
 _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
 
-Kuva (alfojen keruu)
+*Picture 1 returns for different portfolios;
 
-libname mydata ' K:\NewDATASETS\Kuvan portfoliot';  
+libname mydata ' K:\NewDATASETS\picture_portfolios';  
 *reading firm returns for a portfolio;
 data portfolio;
 set mydata.zero_tacc_zero_mcap;
@@ -540,9 +538,9 @@ proc gplot data=mergedout;
 
 
 
-Testi (alustava jakaminen testin portfolioihin)
+*Preliminary division (trix) of stocks to different portfolios by market capitalization and accruals;
 
-libname mydata 'K:\Downloads\Gradu\Tilastoaineisto\Tuotto tietokannat\Portfoliot';  
+libname mydata 'K:\Downloads\Thesis\Data\Portfolios';  
 *reading firms;
 data firms;
 set mydata.firms;
@@ -588,7 +586,7 @@ set firms;
 drop qTACCcf1 qmcap1;
 run;
 
-Testi (tarkempi jakaminen testin portfolioihin)
+*Dividing stocks to different portfolios by market capitalization and accruals;
 
 libname mydata 'K:\NewDATASETS\testi';  
 *reading firms;
@@ -653,9 +651,9 @@ if gTACCcf = 3 and gmcap = 3 then delete;
 run;
 _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
 
-Testi (alfojen keruu)
+*Collecting alpha returns;
 
-Basic hedge accruals;
+*Basic hedge accruals;
 
 libname mydata 'K:\NewDATASETS\testi\basic hedge';  
 *reading firm returns for a portfolio;
@@ -723,7 +721,7 @@ title2;
 title3;
 run;
 
-Basic hedge MCAP;
+*Basic hedge MCAP;
 
 libname mydata 'K:\NewDATASETS\testi\basic hedge';  
 *reading firm returns for a portfolio;
@@ -793,7 +791,8 @@ run;
 
 -----------------------------------------------------------------------------------------------------------------------------------------------
 
-Boxes:
+*Trix returns;
+
 libname mydata 'K:\NewDATASETS\testi\boxes';  
 *reading firm returns for a portfolio;
 data portfolio;
@@ -845,9 +844,9 @@ proc gplot data=mergedout;
 
 -----------------------------------------------------------------------------------------------------------------------------------------------
 
-control hedges
+*Control hedges;
 
-ACC
+*Accrual control hedges;
 
 libname mydata 'K:\NewDATASETS\testi\control hedges';  
 *reading firm returns for a portfolio;
@@ -915,9 +914,9 @@ title2;
 title3;
 run;
 
-MCAP
+*Market capitalization control hedges;
 
-libname mydata 'K:\NewDATASETS\testi\control hedges';  
+libname mydata 'K:\NewDATASETS\test\control hedges';  
 *reading firm returns for a portfolio;
 data portfolio;
 set mydata.box_twelve;
@@ -984,11 +983,11 @@ title3;
 run;
 
 
-NONoverlap
+*Non overlap control hedges;
 
-ACC
+*Non overlap accrual control hedges;
 
-libname mydata 'K:\NewDATASETS\testi\nonoverlap hedges';  
+libname mydata 'K:\NewDATASETS\test\nonoverlap hedges';  
 *reading firm returns for a portfolio;
 data portfolio;
 set mydata.acc;
@@ -1054,9 +1053,9 @@ title2;
 title3;
 run;
 
-MCAP
+*Non overlap market capitalization control hedges;
 
-libname mydata 'K:\NewDATASETS\testi\control hedges';  
+libname mydata 'K:\NewDATASETS\test\control hedges';  
 *reading firm returns for a portfolio;
 data portfolio;
 set mydata.box_twelve;
