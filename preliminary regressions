@@ -1,4 +1,4 @@
-Libname mydata 'K:\Downloads\Gradu\Tilastoaineisto';  
+Libname mydata 'K:\Downloads\Thesis\Data';  
 *Reading compustat data;
 Data compustat;  
 Set mydata.compustat;  
