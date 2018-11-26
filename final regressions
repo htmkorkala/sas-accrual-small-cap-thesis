@@ -1,4 +1,4 @@
-*;
+*Reading data;
 libname mydata 'K:\Downloads\Thesis\Data';  
 data marketr;  
 set mydata.crsp_market_ret;  
