@@ -38,3 +38,5 @@ market capitalization seems to have interaction which would explain that the sma
 companies seem to provide higher abnormal returns than large market capitalization companies. Although 
 according to the hedge tests the accruals component of earnings do not seem to completely explain the small
 market capitalization anomaly and the anomaly is also determined by other factors.
+
+You can find the code for first part (regression tests) and second part (hedge tests) from these sites.
