@@ -481,7 +481,7 @@ set firms_10acc_5mcap;
 if dTACCcf ^= 9 then delete;
 if qmcap ^= 4 then delete;
 run;
-_ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
+
 
 *Picture 1 returns for different portfolios;
 
@@ -649,7 +649,7 @@ if gmcap = 2 then delete;
 if gTACCcf = 1 and gmcap = 1 then delete;
 if gTACCcf = 3 and gmcap = 3 then delete;
 run;
-_ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ _ _ _ _ _ _  _ _  _ 
+
 
 *Collecting alpha returns;
 
@@ -842,7 +842,7 @@ proc gplot data=mergedout;
      title 'Portfolio CAPM Example';
      title2'OLS Residuals versus Market Risk Premium';
 
------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 *Control hedges;
 
