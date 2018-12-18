@@ -26,39 +26,39 @@ set marketr;
 
 *Calculating stock returns;
 
-/* Take natural logs of the firm return (ret) and decile size return (decret) */
+*Take natural logs of the firm return (ret) and decile size return (decret)
 
    lfRET_eq=log(RET_eq+1);
 
-/* Define arrays to create the lagged values */
+*Define arrays to create the lagged values
 
     array lagfRET_eq[11] lagfRET_eq1-lagfRET_eq11;
 
-/* This is the macro portion: a "do-loop" to create the 59 necessary lags */
+*This is the macro portion: a "do-loop" to create the 59 necessary lags *
 
     %do j=1 %to 11;
        lagfRET_eq&j=lag&j(lfRET_eq);
     %end;
 
-/* The following statements set to missing lagged values that */
-/* are reading the data corresponding to the previous PERMNO  */
+*The following statements set to missing lagged values that
+*are reading the data corresponding to the previous PERMNO 
 
    do i=count to 11;
     end;
     count +1 ;
 
-/* Calculate the cumulative returns by adding the logs of the returns*/
+*Calculate the cumulative returns by adding the logs of the returns
 
     fcumRET_eq= exp( sum(of lfRET_eq lagfRET_eq1-lagfRET_eq11)) -1;
 
-/* Drop unnecessary variables */
+* Drop unnecessary variables
 
     drop l: count i;
 
 %mend calcret;  /* End of macro  */
 %calcret;       /* Run the macro */
 
-/* Restore chronological order */
+*Restore chronological order
 proc sort data=marketr2;
   by MCALDT;
 *Keeping only September & March;
@@ -87,7 +87,7 @@ data ret; set h.Crsp_firm_ret; run;
 data size; set h.Crsp_size_ret; format mcaldt date9.; run;
 
 
-/*1. Create cartesian product of firm identifiers (permnos) and month-end dates*/
+*1. Create cartesian product of firm identifiers (permnos) and month-end dates
 
 data permnos; set ret; keep permno ; run;
 proc sort data=permnos nodupkey; by _all_; run; /*23,993*/
@@ -96,6 +96,7 @@ data dates; set size;keep mcaldt; run; /*336*/
 proc sort data=dates nodupkey;  by _all_; run;
 
 proc sql; create table all_dates as select * from permnos , dates; quit;
+
 /*This set contains all possible combinations of firm identifiers and month-end dates:
 23,993 x 336 =  8,061,648*/
 
@@ -129,7 +130,7 @@ all_size_returns.permno=ret.permno and date=mcaldt; quit;
 
 data final_returns; set final_returns; if ret=. then ret=SIZE_RET;  run;
 
-/*delete intermediate datasets*/
+*delete intermediate datasets
 proc datasets; delete april: permnos dates all:; run;
 
 *starting to calculate cumulative returns;
@@ -148,32 +149,32 @@ by permno MCALDT;
 data final_returns;
 set final_returns;
 
-/* Take natural logs of the firm return (ret) and decile size return (decret) */
+*Take natural logs of the firm return (ret) and decile size return (decret)
 
    lfRet=log(Ret+1);
 
-/* Define arrays to create the lagged values */
+*Define arrays to create the lagged values
 
     array lagfRet[11] lagfRet1-lagfRet11;
 
-/* This is the macro portion: a "do-loop" to create the 59 necessary lags */
+*This is the macro portion: a "do-loop" to create the 59 necessary lags
 
     %do j=1 %to 11;
        lagfRet&j=lag&j(lfRet);
     %end;
 
-/* The following statements set to missing lagged values that */
-/* are reading the data corresponding to the previous PERMNO  */
+*The following statements set to missing lagged values that
+*are reading the data corresponding to the previous PERMNO 
 
    do i=count to 11;
     end;
     count +1 ;
 
-/* Calculate the cumulative returns by adding the logs of the returns*/
+*Calculate the cumulative returns by adding the logs of the returns
 
     fcumRet= exp( sum(of lfRet lagfRet1-lagfRet11)) -1;
 
-/* Drop unnecessary variables */
+*Drop unnecessary variables
 
     drop l: count i;
 
@@ -789,7 +790,6 @@ title2;
 title3;
 run;
 
------------------------------------------------------------------------------------------------------------------------------------------------
 
 *Trix returns;
 
